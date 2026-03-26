@@ -1,0 +1,284 @@
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.awt.event.ActionListener;
+import java.util.ArrayList;
+import java.util.Random;
+import java.io.*;
+
+public class SalaoGamePro {
+
+    private JFrame menuFrame, atendimentoFrame, resumoFrame;
+    private double caixa = 0;
+    private ArrayList<Cliente> historico = new ArrayList<>();
+    private Random rand = new Random();
+
+    // Classe interna para guardar cliente + hora + dia
+    static class Cliente {
+        String nome;
+        String dia;
+        String hora;
+        String servico;
+        double preco;
+        int tempo;
+
+        Cliente(String nome, String dia, String hora, String servico, double preco, int tempo) {
+            this.nome = nome;
+            this.dia = dia;
+            this.hora = hora;
+            this.servico = servico;
+            this.preco = preco;
+            this.tempo = tempo;
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new SalaoGamePro().abrirMenu());
+    }
+
+    // -------------------- MENU --------------------
+    private void abrirMenu() {
+        menuFrame = new JFrame("💇 Salão de Cabeleireiro");
+        menuFrame.setSize(400, 300);
+        menuFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        menuFrame.setLayout(new GridBagLayout());
+        menuFrame.getContentPane().setBackground(new Color(245, 245, 245));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10,10,10,10);
+
+        JLabel titulo = new JLabel("SIMULADOR DE SALÃO");
+        titulo.setFont(new Font("Arial", Font.BOLD, 20));
+        titulo.setForeground(new Color(0, 102, 204));
+
+        JButton btnAtender = new JButton("Atender Cliente");
+        JButton btnResumo = new JButton("Resumo do Dia");
+        JButton btnSair = new JButton("Fechar Salão");
+
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        menuFrame.add(titulo, gbc);
+
+        gbc.gridy = 1;
+        menuFrame.add(btnAtender, gbc);
+
+        gbc.gridy = 2;
+        menuFrame.add(btnResumo, gbc);
+
+        gbc.gridy = 3;
+        menuFrame.add(btnSair, gbc);
+
+        btnAtender.addActionListener(e -> {
+            menuFrame.setVisible(false);
+            abrirAtendimento();
+        });
+
+        btnResumo.addActionListener(e -> mostrarResumo());
+
+        btnSair.addActionListener(e -> {
+            salvarCaixa();
+            System.exit(0);
+        });
+
+        menuFrame.setLocationRelativeTo(null);
+        menuFrame.setVisible(true);
+    }
+
+    // -------------------- ATENDIMENTO --------------------
+    private void abrirAtendimento() {
+        atendimentoFrame = new JFrame("💈 Atendimento ao Cliente - Barbearia");
+        atendimentoFrame.setSize(700, 550);
+        atendimentoFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        atendimentoFrame.setLayout(new GridBagLayout());
+        atendimentoFrame.getContentPane().setBackground(new Color(250, 245, 230));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10,10,10,10);
+
+        JLabel lblNome = new JLabel("Nome do Cliente:");
+        lblNome.setFont(new Font("Arial", Font.BOLD, 14));
+        JTextField txtNome = new JTextField(15);
+
+        JLabel lblDia = new JLabel("Dia (Ex: 25/03):");
+        lblDia.setFont(new Font("Arial", Font.BOLD, 14));
+        JTextField txtDia = new JTextField(10);
+
+        gbc.gridx = 0; gbc.gridy = 0; gbc.gridwidth = 2;
+        atendimentoFrame.add(lblNome, gbc);
+        gbc.gridy = 1;
+        atendimentoFrame.add(txtNome, gbc);
+
+        gbc.gridy = 2;
+        atendimentoFrame.add(lblDia, gbc);
+        gbc.gridy = 3;
+        atendimentoFrame.add(txtDia, gbc);
+
+        JLabel lblServico = new JLabel("Escolha o serviço:");
+        lblServico.setFont(new Font("Arial", Font.BOLD, 14));
+
+        JButton btnCorte = new JButton("Corte (R$30)");
+        JButton btnBarba = new JButton("Barba (R$20)");
+        JButton btnCombo = new JButton("Corte + Barba (R$45)");
+        JButton btnPintura = new JButton("Pintura (R$60)");
+
+        gbc.gridy = 4; gbc.gridwidth = 2;
+        atendimentoFrame.add(lblServico, gbc);
+
+        gbc.gridwidth = 1;
+        gbc.gridy = 5; gbc.gridx = 0;
+        atendimentoFrame.add(btnCorte, gbc);
+        gbc.gridx = 1;
+        atendimentoFrame.add(btnBarba, gbc);
+
+        gbc.gridy = 6; gbc.gridx = 0;
+        atendimentoFrame.add(btnCombo, gbc);
+        gbc.gridx = 1;
+        atendimentoFrame.add(btnPintura, gbc);
+
+        JLabel lblAgenda = new JLabel("Clique no horário desejado:");
+        lblAgenda.setFont(new Font("Arial", Font.BOLD, 14));
+        gbc.gridx = 0; gbc.gridy = 7; gbc.gridwidth = 2;
+        atendimentoFrame.add(lblAgenda, gbc);
+
+        JPanel painelAgenda = new JPanel();
+        painelAgenda.setLayout(new GridLayout(0, 4, 10, 10));
+        painelAgenda.setBackground(new Color(250, 245, 230));
+        gbc.gridy = 8;
+        atendimentoFrame.add(painelAgenda, gbc);
+
+        JLabel lblStatus = new JLabel("Escolha serviço, dia e horário");
+        lblStatus.setForeground(new Color(0, 102, 51));
+        gbc.gridy = 9;
+        atendimentoFrame.add(lblStatus, gbc);
+
+        JButton btnVoltar = new JButton("Voltar ao Menu");
+        gbc.gridy = 10;
+        atendimentoFrame.add(btnVoltar, gbc);
+
+        // Servico selecionado
+        final String[] servicoSelecionado = {null};
+        final double[] precoSelecionado = {0};
+
+        ActionListener servicoListener = e -> {
+            if (e.getSource() == btnCorte) { precoSelecionado[0] = 30; servicoSelecionado[0] = "Corte"; }
+            else if (e.getSource() == btnBarba) { precoSelecionado[0] = 20; servicoSelecionado[0] = "Barba"; }
+            else if (e.getSource() == btnCombo) { precoSelecionado[0] = 45; servicoSelecionado[0] = "Corte + Barba"; }
+            else if (e.getSource() == btnPintura) { precoSelecionado[0] = 60; servicoSelecionado[0] = "Pintura"; }
+            lblStatus.setText("Serviço selecionado: " + servicoSelecionado[0]);
+        };
+
+        btnCorte.addActionListener(servicoListener);
+        btnBarba.addActionListener(servicoListener);
+        btnCombo.addActionListener(servicoListener);
+        btnPintura.addActionListener(servicoListener);
+
+        // CORREÇÃO: Runnable usando array para mutabilidade dentro do KeyListener
+        final Runnable[] atualizarAgenda = new Runnable[1];
+        atualizarAgenda[0] = () -> {
+            painelAgenda.removeAll();
+            for (int h = 9; h <= 17; h++) {
+                String hora = h + ":00";
+                JButton btnHora = new JButton(hora);
+                boolean ocupado = historico.stream().anyMatch(c -> c.hora.equals(hora) && c.dia.equals(txtDia.getText().trim()));
+                if (!ocupado) {
+                    btnHora.setBackground(new Color(144, 238, 144));
+                    btnHora.setEnabled(true);
+                } else {
+                    btnHora.setBackground(new Color(255, 99, 71));
+                    btnHora.setEnabled(false);
+                }
+                btnHora.setOpaque(true);
+                btnHora.setBorderPainted(false);
+
+                btnHora.addActionListener(ev -> {
+                    String nome = txtNome.getText().trim();
+                    String dia = txtDia.getText().trim();
+                    if (nome.isEmpty() || dia.isEmpty() || servicoSelecionado[0] == null) {
+                        lblStatus.setText("Preencha nome, dia e selecione serviço!");
+                        return;
+                    }
+                    int tempo = rand.nextInt(30) + 10;
+                    caixa += precoSelecionado[0];
+                    historico.add(new Cliente(nome, dia, hora, servicoSelecionado[0], precoSelecionado[0], tempo));
+                    lblStatus.setText("Atendido: " + nome + " às " + hora);
+                    txtNome.setText("");
+                    servicoSelecionado[0] = null;
+                    precoSelecionado[0] = 0;
+                    atualizarAgenda[0].run();
+                });
+
+                painelAgenda.add(btnHora);
+            }
+            painelAgenda.revalidate();
+            painelAgenda.repaint();
+        };
+
+        // Atualiza agenda quando dia é digitado
+        txtDia.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyReleased(java.awt.event.KeyEvent e) {
+                atualizarAgenda[0].run();
+            }
+        });
+
+        atualizarAgenda[0].run();
+
+        btnVoltar.addActionListener(e -> {
+            atendimentoFrame.setVisible(false);
+            menuFrame.setVisible(true);
+        });
+
+        atendimentoFrame.setLocationRelativeTo(null);
+        atendimentoFrame.setVisible(true);
+    }
+
+    // -------------------- RESUMO --------------------
+    private void mostrarResumo() {
+        resumoFrame = new JFrame("Resumo do Dia");
+        resumoFrame.setSize(700, 500);
+        resumoFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        resumoFrame.setLayout(new BorderLayout());
+
+        String[] colunas = {"Cliente", "Dia", "Hora", "Serviço", "Preço", "Tempo(min)"};
+        DefaultTableModel model = new DefaultTableModel(colunas, 0);
+
+        for (Cliente c : historico) {
+            model.addRow(new Object[]{c.nome, c.dia, c.hora, c.servico, "R$ " + c.preco, c.tempo});
+        }
+
+        JTable tabela = new JTable(model);
+        tabela.setFont(new Font("Arial", Font.PLAIN, 14));
+        tabela.setRowHeight(25);
+        tabela.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14));
+        tabela.setFillsViewportHeight(true);
+
+        JScrollPane scroll = new JScrollPane(tabela);
+
+        JLabel lblTotal = new JLabel("Total do dia: R$ " + caixa);
+        lblTotal.setFont(new Font("Arial", Font.BOLD, 16));
+        lblTotal.setForeground(new Color(0, 102, 51));
+        lblTotal.setBorder(BorderFactory.createEmptyBorder(10,10,10,10));
+
+        JPanel panelSul = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        panelSul.setBackground(new Color(245, 245, 245));
+        panelSul.add(lblTotal);
+
+        resumoFrame.add(scroll, BorderLayout.CENTER);
+        resumoFrame.add(panelSul, BorderLayout.SOUTH);
+
+        resumoFrame.setLocationRelativeTo(null);
+        resumoFrame.setVisible(true);
+    }
+
+    // -------------------- SALVAR CAIXA --------------------
+    private void salvarCaixa() {
+        try (PrintWriter pw = new PrintWriter(new FileWriter("caixa_salao.txt"))) {
+            pw.println("Resumo do Dia:");
+            for (Cliente c : historico) {
+                pw.println(c.nome + " - " + c.dia + " - " + c.hora + " - " + c.servico + " - R$" + c.preco);
+            }
+            pw.println("Total do dia: R$ " + caixa);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(null, "Erro ao salvar arquivo: " + e.getMessage());
+        }
+    }
+}
